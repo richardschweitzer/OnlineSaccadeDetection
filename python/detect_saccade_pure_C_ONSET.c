@@ -219,22 +219,29 @@ struct detection_results run_detection(double *x, double *y, double *t,
     }
     
     // compute the median velocity and standard deviation for each x and y
-    ncols_v_sq = ncols_v - above_thres_needed; // number of elements without the ones that will be tested
     double median_vx, median_vy, sd_vx, sd_vy; // values to compute the thresholds
-    double vx_sq[ncols_v_sq], vy_sq[ncols_v_sq]; // median-cleaned and squared vectors
-    median_vx = quick_select(vx, ncols_v_sq);
-    median_vy = quick_select(vy, ncols_v_sq);
-    for (it = 0; it < ncols_v_sq; it++) {
-        vx_sq[it] = pow(vx[it] - median_vx, 2);
-        vy_sq[it] = pow(vy[it] - median_vy, 2);
-    }
-    sd_vx = sqrt(quick_select(vx_sq, ncols_v_sq));
-    sd_vy = sqrt(quick_select(vy_sq, ncols_v_sq));
-    if (print_results != 0) {
-        fprintf(stdout, "Median: x=%g y=%g\n",
-                median_vx, median_vy);
-        fprintf(stdout, "SD: x=%g y=%g\n",
-                sd_vx, sd_vy);
+    if (do_run_detection == 1) {
+        ncols_v_sq = ncols_v - above_thres_needed; // number of elements without the ones that will be tested
+        double vx_sq[ncols_v_sq], vy_sq[ncols_v_sq]; // median-cleaned and squared vectors
+        median_vx = quick_select(vx, ncols_v_sq);
+        median_vy = quick_select(vy, ncols_v_sq);
+        for (it = 0; it < ncols_v_sq; it++) {
+            vx_sq[it] = pow(vx[it] - median_vx, 2);
+            vy_sq[it] = pow(vy[it] - median_vy, 2);
+        }
+        sd_vx = sqrt(quick_select(vx_sq, ncols_v_sq));
+        sd_vy = sqrt(quick_select(vy_sq, ncols_v_sq));
+        if (print_results != 0) {
+            fprintf(stdout, "Median: x=%g y=%g\n",
+                    median_vx, median_vy);
+            fprintf(stdout, "SD: x=%g y=%g\n",
+                    sd_vx, sd_vy);
+        }
+    } else { // we cannot compute thresholds, because we don't have enough samples!
+        median_vx = NAN;
+        median_vy = NAN;
+        sd_vx = NAN;
+        sd_vy = NAN;
     }
     
     // compute the thresholds
@@ -258,9 +265,9 @@ struct detection_results run_detection(double *x, double *y, double *t,
         sac_vx = NAN;
         sac_vy = NAN;
         sac_t_onset = NAN;
-        if (print_results != 0) {
+//        if (print_results != 0) {
             fprintf(stdout, "->STOP. There are NaNs or zeros in computed thresholds!\n");
-        }
+//        }
     } else {
         // let's try to detect a saccade in the last n samples specified by above_thres_needed
         for (it=ncols_v-above_thres_needed; it<ncols_v; it++) { 

@@ -7,12 +7,12 @@ How to run the saccade detection algorithm written in C from Python as a python 
 # HOW TO COMPILE ?
 ROUTE 1 (via .o)
 1. create the C object:
-    gcc -c -fPIC detect_saccade_pure_C_ONSET.cpp -o detect_saccade.o
+    gcc -c -fPIC detect_saccade_pure_C_ONSET.c -o detect_saccade.o
 2. create the shared object:
     gcc detect_saccade.o -shared -o detect_saccade.so
 ROUTE 2 (directly to .so)
 1. create the shared object directly:
-    gcc -shared -o detect_saccade.so -fPIC detect_saccade_pure_C_ONSET.cpp 
+    gcc -shared -o detect_saccade.so -fPIC detect_saccade_pure_C_ONSET.c 
 
 # useful sources for using ctypes: 
     http://doc.sagemath.org/html/en/thematic_tutorials/numerical_sage/ctypes.html
@@ -58,6 +58,7 @@ class online_sac_detect:
         self.x = np.array([])
         self.y = np.array([])
         self.t = np.array([])
+        self.current_n_samples = 0
         # set the default parameters:
         print('Loading default parameters... Call set_parameters() to change!')
         self.set_parameters(print_parameters=False)
@@ -66,7 +67,7 @@ class online_sac_detect:
     def set_parameters(self, thres_fac=10, above_thres_needed=3, 
                        restrict_dir_min=0, restrict_dir_max=0,
                        samp_rate=0, anchor_vel_thres=10, print_results=0, 
-                       print_parameters=True):
+                       print_parameters=False):
         self.thres_fac = thres_fac
         self.above_thres_needed = above_thres_needed
         self.restrict_dir_min = restrict_dir_min
@@ -91,6 +92,7 @@ class online_sac_detect:
         self.x = np.array([], dtype=float)
         self.y = np.array([], dtype=float)
         self.t = np.array([], dtype=float)
+        self.current_n_samples = 0
     
     def add_data(self, x, y, t):
         self.x = np.append(self.x, np.array(x, dtype=float))
@@ -98,24 +100,26 @@ class online_sac_detect:
         self.t = np.append(self.t, np.array(t, dtype=float))
         assert(np.size(x)==np.size(y))
         assert(np.size(x)==np.size(t))
+        self.current_n_samples = len(self.x)
 
     
     def return_data(self):
         return(self.x, self.y, self.t)
     
     def run_detection(self):
-        self.current_n_samples = len(self.x)
         x_p = self.x.ctypes.data_as(ctypes.c_void_p)
         y_p = self.y.ctypes.data_as(ctypes.c_void_p)
         t_p = self.t.ctypes.data_as(ctypes.c_void_p)
+        if np.size(self.x) < (2*self.above_thres_needed):
+            print('WARNING: You run the detection without having more than twice the amount of samples needed!')
         t0 = time.time()
-        self.res_here = self.lib_sac_detect.run_detection( x_p, y_p, t_p, 
+        res_here = self.lib_sac_detect.run_detection( x_p, y_p, t_p, 
                                  self.thres_fac, self.above_thres_needed, 
                                  self.restrict_dir_min, self.restrict_dir_max,
                                  self.samp_rate, self.anchor_vel_thres, self.print_results, 
                                  self.current_n_samples ) 
-        self.run_time_here = (time.time() - t0) * 1000 # in ms
-        return(self.res_here, self.run_time_here)
+        run_time_here = (time.time() - t0) * 1000 # in ms
+        return(res_here, run_time_here)
 
         
 
@@ -167,6 +171,8 @@ if __name__ == '__main__':
     detect_this.set_parameters(thres_fac, above_thres_needed, 
                                restrict_dir_min, restrict_dir_max, 
                                samp_rate_now, anchor_vel_thres, print_results)
+    detect_this.return_data() # returns current data (should be empty after loading)
+    detect_this.get_parameters() # returns current parameters
     
     ### 4. loop through samples, display results, get timing
     do_plot = True
@@ -184,7 +190,12 @@ if __name__ == '__main__':
                                  t_sac[sample_i])
         all_convert_times[sample_i-start_sample] = (time.time() - t0) * 1000 # in ms
         
+#        # for debugging and to see whether warning messages work
+#        detect_this.set_parameters(above_thres_needed = 20, print_results = False)
+#        detect_this.set_parameters(above_thres_needed = 3, print_results = True, samp_rate=1000)
+        
         # run the detection and time it...
+        print('Run detection with n=' + str(detect_this.current_n_samples) + ' samples...')
         run_times = np.ones(timing_iterations)
         for run_i in range(timing_iterations):
             res_here, run_time_here = detect_this.run_detection() 
