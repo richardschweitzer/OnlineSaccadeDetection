@@ -31,7 +31,13 @@
 #include <assert.h>
 
 
-/* QUICK SELECT FUNCTION TO COMPUTE MEDIAN: implementation by N. Devillard. */
+/* when building with MinGW64 Compiler on Win10, M_PI might have to be defined */
+#ifndef M_PI 
+#define M_PI (3.14159265358979323846264338327950288)
+#endif
+
+
+/* QUICK SORT FUNCTION TO COMPUTE MEDIAN: implementation by N. Devillard. */
 /* retrieved from: http://ndevilla.free.fr/median/median/index.html */
 /* Algorithm described in:
  * Numerical recipes in C, second edition, Cambridge University Press, 1992, section 8.5, ISBN 0-521-43108-5 */
